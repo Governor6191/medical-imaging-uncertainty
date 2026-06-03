@@ -56,9 +56,18 @@ def _download_file(url: str, dest: Path, *, retries: int = 4) -> bool:
 
 
 def _label_of(record: dict) -> str | None:
+    """Map an image's top-level diagnosis to a binary label, or None to skip it.
+
+    The ISIC taxonomy puts the benign/malignant/indeterminate level at
+    ``metadata.clinical.diagnosis_1``. Indeterminate or unlabeled images return
+    None and are skipped.
+    """
     clinical = (record.get("metadata") or {}).get("clinical") or {}
-    value = clinical.get("benign_malignant")
-    return value if value in LABELS else None
+    value = clinical.get("diagnosis_1")
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    return normalized if normalized in LABELS else None
 
 
 def collect(out_dir: Path, per_class: int, size: str) -> list[tuple[str, str]]:
