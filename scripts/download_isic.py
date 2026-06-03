@@ -70,16 +70,23 @@ def _label_of(record: dict) -> str | None:
     return normalized if normalized in LABELS else None
 
 
-def collect(out_dir: Path, per_class: int, size: str) -> list[tuple[str, str]]:
-    """Walk the archive, download up to ``per_class`` images per label, return (file, label)."""
+def collect(out_dir: Path, per_class: int, size: str, max_pages: int) -> list[tuple[str, str]]:
+    """Walk the archive, download up to ``per_class`` images per label, return (file, label).
+
+    Stops when both classes reach ``per_class`` or after ``max_pages`` pages, so the
+    walk stays bounded even though malignant is the minority across the full archive.
+    Whatever was collected is returned and written, even on an early stop.
+    """
     images_dir = out_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
     counts = {label: 0 for label in LABELS}
     rows: list[tuple[str, str]] = []
 
     url: str | None = API_IMAGES
-    while url and any(counts[label] < per_class for label in LABELS):
+    pages = 0
+    while url and pages < max_pages and any(counts[label] < per_class for label in LABELS):
         page = _get_json(url)
+        pages += 1
         for record in page.get("results", []):
             label = _label_of(record)
             if label is None or counts[label] >= per_class:
@@ -124,9 +131,12 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("data/isic"))
     parser.add_argument("--per-class", type=int, default=1500)
     parser.add_argument("--size", choices=["thumbnail_256", "full"], default="thumbnail_256")
+    parser.add_argument(
+        "--max-pages", type=int, default=600, help="cap the archive walk (100 images per page)"
+    )
     args = parser.parse_args()
 
-    rows = collect(args.out, args.per_class, args.size)
+    rows = collect(args.out, args.per_class, args.size, args.max_pages)
     if not rows:
         raise SystemExit("no labeled images were downloaded; check network access")
 
