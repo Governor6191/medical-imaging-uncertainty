@@ -1,8 +1,9 @@
 # ISIC skin lesion classification, single model and ensemble base config.
-# Binary benign vs malignant with a ResNet-50 backbone.
+# Binary benign vs malignant with a ResNet-50 backbone on full-resolution images.
 name: isic_resnet50
 task: classification
 num_classes: 2
+image_size: 320
 seed: 0
 num_workers: 4
 n_bins: 15
@@ -21,6 +22,6 @@ optim:
   lr: 0.0003
   weight_decay: 0.0001
   epochs: 20
-  batch_size: 32
+  batch_size: 24
   amp: true
   scheduler: cosine

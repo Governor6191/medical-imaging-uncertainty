@@ -57,7 +57,6 @@ def main() -> None:
     )
     parser.add_argument("--config", required=True)
     parser.add_argument("--data-root", required=True)
-    parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--device", default=None, help="cuda or cpu; auto-detected if omitted")
     parser.add_argument("--override", nargs="*", default=None, help="OmegaConf dotted overrides")
     args = parser.parse_args()
@@ -65,9 +64,11 @@ def main() -> None:
     cfg = load_config(args.config, overrides=args.override)
     set_seed(cfg.seed)
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"device={device}  config={cfg.name}  backbone={cfg.model.backbone}")
+    print(
+        f"device={device}  config={cfg.name}  backbone={cfg.model.backbone}  image_size={cfg.image_size}"
+    )
 
-    train_loader, val_loader = build_isic_loaders(cfg, args.data_root, args.image_size)
+    train_loader, val_loader = build_isic_loaders(cfg, args.data_root, cfg.image_size)
     model = build_model_from_config(cfg)
     history = train_model(model, train_loader, val_loader, cfg=cfg, device=device, log_fn=print)
     print(f"best epoch {history.best_epoch} at val loss {history.best_val_loss:.4f}")

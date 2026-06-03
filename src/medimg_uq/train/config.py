@@ -43,6 +43,7 @@ class ExperimentConfig:
     name: str = "run"
     task: Task = Task.CLASSIFICATION
     num_classes: int = 2
+    image_size: int = 224
     seed: int = 0
     num_workers: int = 4
     n_bins: int = 15
