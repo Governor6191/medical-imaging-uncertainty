@@ -64,9 +64,8 @@ def main() -> None:
     cfg = load_config(args.config, overrides=args.override)
     set_seed(cfg.seed)
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
-    print(
-        f"device={device}  config={cfg.name}  backbone={cfg.model.backbone}  image_size={cfg.image_size}"
-    )
+    print(f"device={device}  config={cfg.name}  backbone={cfg.model.backbone}")
+    print(f"image_size={cfg.image_size}  num_classes={cfg.num_classes}")
 
     train_loader, val_loader = build_isic_loaders(cfg, args.data_root, cfg.image_size)
     model = build_model_from_config(cfg)
