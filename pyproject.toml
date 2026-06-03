@@ -1,0 +1,55 @@
+[project]
+name = "medimg-uq"
+version = "0.1.0"
+description = "A modality-agnostic medical-imaging framework with calibrated uncertainty via Deep Ensembles"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.2",
+    "torchvision",
+    "timm",
+    "torchmetrics",
+    "albumentations",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "pillow",
+    "omegaconf",
+    "tqdm",
+    "datasets",
+    "huggingface_hub",
+]
+
+[project.optional-dependencies]
+logging = ["wandb"]
+demo = ["gradio"]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/medimg_uq"]
+
+# Pull PyTorch from the CUDA 12.4 wheel index instead of the default CPU-only
+# wheels on PyPI. The RTX 4070 driver supports CUDA 13.0, which is backward
+# compatible with the cu124 runtime.
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
