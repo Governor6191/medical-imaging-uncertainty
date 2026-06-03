@@ -1,0 +1,26 @@
+# ISIC skin lesion classification, single model and ensemble base config.
+# Binary benign vs malignant with a ResNet-50 backbone.
+name: isic_resnet50
+task: classification
+num_classes: 2
+seed: 0
+num_workers: 4
+n_bins: 15
+out_dir: outputs
+ckpt_dir: checkpoints
+ensemble_size: 5
+mc_dropout_samples: 30
+
+model:
+  backbone: resnet50
+  pretrained: true
+  drop_rate: 0.3
+  in_chans: 3
+
+optim:
+  lr: 0.0003
+  weight_decay: 0.0001
+  epochs: 20
+  batch_size: 32
+  amp: true
+  scheduler: cosine

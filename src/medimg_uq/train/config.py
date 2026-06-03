@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -64,6 +64,19 @@ class ExperimentConfig:
         return ExperimentConfig(model=model, optim=optim, **data)
 
 
+def _default_container() -> dict:
+    """Defaults as a plain, untyped dict (task as its string value).
+
+    Kept untyped on purpose: OmegaConf's enum node matches by member name, not by
+    the StrEnum value used in YAML, so the task tag is carried as a string here and
+    coerced back to :class:`Task` in :meth:`ExperimentConfig.from_dict`.
+    """
+    cfg = ExperimentConfig()
+    container = asdict(cfg)
+    container["task"] = str(cfg.task)
+    return container
+
+
 def load_config(
     path: str | Path | None = None,
     overrides: Sequence[str] | None = None,
@@ -73,7 +86,7 @@ def load_config(
     Overrides are OmegaConf dotlist strings, for example
     ``["optim.epochs=3", "model.backbone=resnet18"]``.
     """
-    merged = OmegaConf.structured(ExperimentConfig())
+    merged = OmegaConf.create(_default_container())
     if path is not None:
         merged = OmegaConf.merge(merged, OmegaConf.load(path))
     if overrides:
