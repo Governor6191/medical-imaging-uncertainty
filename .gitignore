@@ -46,6 +46,7 @@ outputs/**
 !outputs/**/
 !outputs/.gitkeep
 !outputs/**/metrics.json
+!outputs/**/comparison.json
 
 # Model checkpoints (released via Hugging Face Hub, not tracked in git)
 checkpoints/
