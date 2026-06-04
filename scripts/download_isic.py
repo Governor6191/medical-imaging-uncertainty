@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import random
 import time
 import urllib.error
 import urllib.request
@@ -106,12 +107,24 @@ def collect(out_dir: Path, per_class: int, size: str, max_pages: int) -> list[tu
 
 
 def stratified_split(
-    rows: list[tuple[str, str]], *, val_frac: float = 0.15, test_frac: float = 0.15
+    rows: list[tuple[str, str]],
+    *,
+    val_frac: float = 0.15,
+    test_frac: float = 0.15,
+    seed: int = 0,
 ) -> list[tuple[str, str, str]]:
-    """Assign a split per row, stratified by label and deterministic in row order."""
+    """Assign a split per row, stratified by label and shuffled within each class.
+
+    The shuffle (seeded, so it is reproducible) matters: images arrive in isic_id
+    order, which groups acquisition eras together, so a positional split would put
+    a different distribution in test than in train. Shuffling first makes train,
+    val, and test independent draws from the same distribution.
+    """
+    rng = random.Random(seed)
     out: list[tuple[str, str, str]] = []
     for label in LABELS:
         group = [r for r in rows if r[1] == label]
+        rng.shuffle(group)
         n = len(group)
         n_test = int(round(n * test_frac))
         n_val = int(round(n * val_frac))
