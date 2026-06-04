@@ -62,6 +62,12 @@ MC Dropout barely moves off the single model. That is expected and worth stating
 
 *Left: single model, test ECE 0.027. Right: Deep Ensemble, test ECE 0.017. The ensemble's bars sit closer to the diagonal across the mid-confidence range.*
 
+**Worked examples.** Calibrated uncertainty is only useful if the model tells you when to trust it. These are real test lesions: the top row is where the ensemble is confident and correct, the bottom row is the lesions where its members disagree most.
+
+![ISIC worked examples](docs/figures/isic_worked_examples.png)
+
+*Each panel shows the true label, the ensemble prediction, the probability of malignant, and the epistemic uncertainty (how much the members disagree). The uncertain row is dark, irregular pigmented lesions, the genuinely harder cases. The confident benign cases carry colored calibration stickers, a visible reminder of the dataset confounds noted below.*
+
 **Honest caveats.**
 
 - This is a balanced 3000-image subset drawn from the earlier, well-curated part of the archive, so it is cleaner and easier than the full ISIC collection. The high absolute AUROC reflects that, not clinical-grade performance.
