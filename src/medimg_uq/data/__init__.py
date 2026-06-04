@@ -5,6 +5,7 @@ Everything a task needs to differ lives here, behind the shared ``Sample`` contr
 """
 
 from medimg_uq.data.base import MedicalDataset
+from medimg_uq.data.brats import BraTSDataset, center_fit
 from medimg_uq.data.isic import ISICDataset, isic_transforms
 from medimg_uq.data.synthetic import (
     SyntheticClassificationDataset,
@@ -12,9 +13,11 @@ from medimg_uq.data.synthetic import (
 )
 
 __all__ = [
+    "BraTSDataset",
     "ISICDataset",
     "MedicalDataset",
     "SyntheticClassificationDataset",
     "SyntheticSegmentationDataset",
+    "center_fit",
     "isic_transforms",
 ]

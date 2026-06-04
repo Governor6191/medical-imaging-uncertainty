@@ -7,7 +7,13 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from medimg_uq.calibration import compute_report, dice_score, iou_score
+from medimg_uq.calibration import (
+    compute_report,
+    dice_score,
+    iou_score,
+    save_figure,
+    segmentation_panels,
+)
 from medimg_uq.contract import Task, collate_samples
 from medimg_uq.data import SyntheticSegmentationDataset
 from medimg_uq.eval import evaluate
@@ -90,3 +96,15 @@ def test_train_then_evaluate_segmentation_end_to_end(tmp_path):
     assert result.epistemic.shape == (4, 64, 64)  # per-voxel uncertainty map
     assert report.dice is not None
     assert 0.0 <= report.ece <= 1.0
+
+
+def test_segmentation_panels_saves_a_nonempty_figure(tmp_path):
+    image = torch.rand(32, 32)
+    prediction = torch.zeros(32, 32, dtype=torch.long)
+    prediction[8:20, 8:20] = 1
+    uncertainty = torch.rand(32, 32)
+    target = prediction.clone()
+    fig = segmentation_panels(image, prediction, uncertainty, target=target, title="test")
+    out = save_figure(fig, tmp_path / "panels.png")
+    assert out.exists()
+    assert out.stat().st_size > 0

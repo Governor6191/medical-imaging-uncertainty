@@ -18,7 +18,11 @@ from medimg_uq.calibration.metrics import (
     negative_log_likelihood,
     reliability_curve,
 )
-from medimg_uq.calibration.plots import reliability_diagram, save_figure
+from medimg_uq.calibration.plots import (
+    reliability_diagram,
+    save_figure,
+    segmentation_panels,
+)
 from medimg_uq.calibration.report import CalibrationReport, compute_report
 
 __all__ = [
@@ -37,4 +41,5 @@ __all__ = [
     "reliability_curve",
     "reliability_diagram",
     "save_figure",
+    "segmentation_panels",
 ]
