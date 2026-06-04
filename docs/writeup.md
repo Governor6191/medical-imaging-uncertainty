@@ -2,7 +2,7 @@
 
 Most medical imaging projects report one number: accuracy, or AUROC if they're being careful. I think that's the wrong place to stop. A model that's right 95 percent of the time but has no idea which 5 percent it got wrong is hard to trust with anything that matters. What you actually want is a model that tells you when it isn't sure.
 
-So I built a small framework around that idea. The rule is simple: every model reports calibration next to accuracy, every time. Then I proved it on skin lesion classification, with brain tumor segmentation coming next.
+So I built a small framework around that idea. The rule is simple: every model reports calibration next to accuracy, every time. Then I proved it on two tasks that share a core but little else: skin lesion classification and brain tumor segmentation.
 
 ## The setup
 
@@ -34,9 +34,26 @@ The test numbers were near chance, until I found my own bug. My first split assi
 
 The 0.99 AUROC is not a clinical result, and I want to be clear about that. The data is a clean, balanced slice of ISIC, and dermoscopy images carry confounds a CNN will happily exploit: rulers, ink, colored stickers. You can see it in the worked examples, where the confident benign cases have stickers and the uncertain ones are clean dark lesions. This is a calibration demonstration, not a diagnosis.
 
+## The second application: brain tumor segmentation
+
+The point of the framework was never one dataset, so I took the same core to a task that looks nothing like skin lesions: brain tumor segmentation on BraTS, four co-registered MRI sequences in, a per-voxel tumor mask out. Classification gives one label per image; segmentation gives one label per voxel, hundreds of thousands of them per slice. The model had to change, a 2D-slice U-Net with a ResNet-34 encoder instead of a ResNet-50 classifier, but nothing else did. The uncertainty engine, the calibration suite, and the training harness ran unchanged, scoring calibration per voxel instead of per image.
+
+The result held up. On the held-out test split, about 178 million voxels, the Deep Ensemble beat the single model on every metric:
+
+| Method | Dice | IoU | NLL | ECE |
+|---|---|---|---|---|
+| Single model | 0.822 | 0.700 | 0.040 | 0.0059 |
+| Deep Ensemble | 0.828 | 0.708 | 0.032 | 0.0044 |
+
+Same shape as ISIC: the accuracy-style numbers, Dice and IoU, nudge up, and the calibration numbers move more, with per-voxel NLL down 19 percent and ECE down 25 percent. The honest caveats carry over too. This is a 2D-slice model, so the Dice is not comparable to the 3D BraTS leaderboard, and I report the mean over the raw tumor subclasses rather than the nested leaderboard regions. It is a calibration result, not a clinical one.
+
+The figure is the part I find most convincing. For the slice the ensemble was least sure about, the per-voxel uncertainty map concentrates exactly where you would expect: along the tumor boundary and through the heterogeneous core, the voxels where the label is genuinely ambiguous, and it drops to near zero in confident healthy tissue. That is calibrated segmentation uncertainty doing something useful, flagging the voxels a radiologist would also linger on, rather than reporting one flat confidence everywhere.
+
+One engineering note worth keeping, because it nearly cost the run. The naive data loader reloaded an entire 80 MB patient volume on every slice access, which is fine for a handful of patients but thrashes under shuffled access across hundreds of them, enough to turn a few-hour run into a few-week one. The fix was a one-time pass that extracts the tumor slices to small per-slice files, after which training is bound by the GPU instead of the disk. The lesson is the same flavor as the evaluation bug above: the thing that quietly wrecks a deep-learning project is rarely the model, it is the plumbing around it.
+
 ## Why a framework, not a model
 
-The uncertainty engine, the calibration suite, the training loop: none of it knows or cares whether it's looking at a skin photo or a brain scan. The task-specific parts live behind one data contract and one model factory. That's on purpose. The next application is BraTS brain tumor segmentation, where the same ensemble produces a per-voxel uncertainty map that should light up along tumor boundaries. Same core, different head.
+The uncertainty engine, the calibration suite, the training loop: none of it knows or cares whether it's looking at a skin photo or a brain scan. The task-specific parts live behind one data contract and one model factory. That's on purpose, and the BraTS leg is the proof: a classifier and a dense segmenter, two tasks that share almost nothing at the pixel level, ran through the same core with only the model swapped. Same engine, different head.
 
 That's the part I'd defend in a review: not that I trained a CNN on medical images, which is a weekend, but that the calibration rigor and the reusable two-modality design are the contribution.
 
