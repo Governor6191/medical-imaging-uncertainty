@@ -101,11 +101,19 @@ It opens at `http://127.0.0.1:7860`. By default it loads the ensemble from `chec
 
 ## Application 2: brain tumor segmentation (BraTS)
 
-Planned, not yet built. BraTS is multi-modal MRI (T1, T1ce, T2, FLAIR) and dense per-voxel segmentation. It reuses the shared core with a 2D-slice U-Net, a Dice plus cross-entropy loss, and segmentation metrics (Dice, IoU). The uncertainty story is the per-voxel map: the model should be least certain at tumor boundaries. Access needs a data-use agreement, so that registration comes first on this leg.
+Code complete, awaiting data. BraTS is multi-modal MRI (T1, T1ce, T2, FLAIR) and dense per-voxel segmentation. It reuses the shared core: a 2D-slice U-Net (`segmentation_models_pytorch`), a Dice plus cross-entropy loss, Dice and IoU metrics, and the per-voxel calibration the suite already does. The data adapter, the loss, the metrics, the training entry point, and the uncertainty-map figure are built and tested against synthetic NIfTI volumes, so the segmentation half of the framework runs through the same harness as the classifier (a single model is still an ensemble of one).
+
+What's left is the real run. BraTS access needs a Synapse data-use agreement, and the numbers plus the headline figure land here once that comes through. That figure is three panels: an MRI slice, the predicted tumor mask, and the per-voxel uncertainty map, which should be least certain along the tumor boundaries.
+
+Reproduce, once the data is in place:
+
+```
+python scripts/train_brats.py --config configs/brats_unet.yaml --data-root data/brats
+```
 
 ## Status
 
-ISIC is done. BraTS is next. These are research models, not cleared diagnostic tools.
+ISIC is done and deployed (demo, model, code). BraTS is code complete and tested on synthetic data, waiting on the Synapse data-use agreement to train for real. These are research models, not cleared diagnostic tools.
 
 ## Setup
 
