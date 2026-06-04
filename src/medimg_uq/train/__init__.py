@@ -19,9 +19,10 @@ from medimg_uq.train.loop import (
     train_ensemble,
     train_model,
 )
-from medimg_uq.train.losses import make_loss
+from medimg_uq.train.losses import DiceCELoss, make_loss
 
 __all__ = [
+    "DiceCELoss",
     "EpochStats",
     "ExperimentConfig",
     "ModelConfig",

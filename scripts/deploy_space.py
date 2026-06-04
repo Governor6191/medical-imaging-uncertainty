@@ -65,9 +65,7 @@ def main() -> None:
         tmp = Path(tmp_name)
         shutil.copy("app.py", tmp / "app.py")
         shutil.copy("requirements.txt", tmp / "requirements.txt")
-        shutil.copytree(
-            "src", tmp / "src", ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
-        )
+        shutil.copytree("src", tmp / "src", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         (tmp / "README.md").write_text(space_readme(gradio.__version__), encoding="utf-8")
         api.upload_folder(
             folder_path=str(tmp),

@@ -56,3 +56,45 @@ class SyntheticClassificationDataset(MedicalDataset):
             task=self.task,
             meta={"index": index},
         )
+
+
+class SyntheticSegmentationDataset(MedicalDataset):
+    """Multi-channel images whose per-voxel label is the intensity band of channel 0.
+
+    The mask is a learnable function of the input (the class is which quantile band
+    a voxel's channel-0 value falls in), so a small U-Net trained on it produces a
+    non-trivial Dice and a real per-voxel calibration curve. Stands in for BraTS,
+    which has four MRI modalities as channels and a tumor mask as the target.
+    """
+
+    task = Task.SEGMENTATION
+
+    def __init__(
+        self,
+        n: int = 16,
+        *,
+        image_size: int = 64,
+        in_chans: int = 4,
+        num_classes: int = 3,
+        seed: int = 0,
+    ) -> None:
+        super().__init__(num_classes=num_classes)
+        self.n = n
+        self.image_size = image_size
+        self.in_chans = in_chans
+        generator = torch.Generator().manual_seed(seed)
+        self.images = torch.rand(n, in_chans, image_size, image_size, generator=generator)
+        channel0 = self.images[:, 0]  # (n, H, W)
+        bands = (channel0 * num_classes).floor().clamp_(0, num_classes - 1)
+        self.masks = bands.long()
+
+    def __len__(self) -> int:
+        return self.n
+
+    def __getitem__(self, index: int) -> Sample:
+        return Sample(
+            image=self.images[index],
+            target=self.masks[index],
+            task=self.task,
+            meta={"index": index},
+        )

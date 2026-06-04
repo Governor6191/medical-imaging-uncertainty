@@ -124,7 +124,7 @@ def train_model(
     scheduler = None
     if cfg.optim.scheduler == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.optim.epochs)
-    criterion = make_loss(cfg.task).to(device)
+    criterion = make_loss(cfg.task, num_classes=cfg.num_classes).to(device)
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     ckpt_dir = Path(cfg.ckpt_dir) / cfg.name

@@ -7,6 +7,8 @@ dependencies = [
     "torch>=2.2",
     "torchvision",
     "timm",
+    "segmentation-models-pytorch",
+    "nibabel",
     "torchmetrics",
     "albumentations",
     "numpy",

@@ -4,7 +4,8 @@ Builds the model the task needs from a small config. Classification uses a timm
 backbone as a feature extractor with an explicit dropout-plus-linear head. The
 head dropout is a real ``nn.Dropout`` module, not timm's functional head dropout,
 so MC Dropout can switch it on at inference without dragging batch norm into
-training mode. The segmentation model (a U-Net) arrives with the BraTS application.
+training mode. Segmentation uses a U-Net from segmentation_models_pytorch with a
+configurable encoder; its ensemble produces per-voxel uncertainty maps.
 """
 
 from __future__ import annotations
@@ -80,7 +81,12 @@ def build_model(
             in_chans=in_chans,
         )
     if task is Task.SEGMENTATION:
-        raise NotImplementedError(
-            "the segmentation model (U-Net) is built with the BraTS application"
+        import segmentation_models_pytorch as smp
+
+        return smp.Unet(
+            encoder_name=backbone,
+            encoder_weights="imagenet" if pretrained else None,
+            in_channels=in_chans,
+            classes=num_classes,
         )
     raise ValueError(f"unknown task: {task}")

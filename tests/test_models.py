@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
 from torch import nn
 
@@ -46,6 +45,9 @@ def test_in_chans_is_configurable():
     assert out.shape == (2, 3)
 
 
-def test_segmentation_model_arrives_with_brats():
-    with pytest.raises(NotImplementedError, match="BraTS"):
-        build_model(task=Task.SEGMENTATION, backbone="resnet18", num_classes=2, pretrained=False)
+def test_segmentation_model_builds_a_unet():
+    model = build_model(
+        task=Task.SEGMENTATION, backbone="resnet18", num_classes=2, pretrained=False, in_chans=4
+    )
+    out = model(torch.randn(1, 4, 64, 64))
+    assert out.shape == (1, 2, 64, 64)

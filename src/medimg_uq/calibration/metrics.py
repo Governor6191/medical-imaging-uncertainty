@@ -166,3 +166,59 @@ def auroc(probs: torch.Tensor, targets: torch.Tensor, num_classes: int) -> float
     if num_classes == 2:
         return binary_auroc(probs[:, 1], targets).item()
     return multiclass_auroc(probs, targets, num_classes=num_classes, average="macro").item()
+
+
+def _hard_labels(preds: torch.Tensor) -> torch.Tensor:
+    """Accept either ``(N, C, H, W)`` probabilities/logits or ``(N, H, W)`` labels."""
+    return preds.argmax(dim=1) if preds.ndim == 4 else preds
+
+
+def dice_score(
+    preds: torch.Tensor,
+    targets: torch.Tensor,
+    num_classes: int,
+    *,
+    include_background: bool = False,
+    eps: float = 1e-7,
+) -> float:
+    """Mean Dice over classes (foreground only by default).
+
+    ``preds`` may be per-voxel probabilities ``(N, C, H, W)`` or hard labels
+    ``(N, H, W)``; ``targets`` are hard labels ``(N, H, W)``. Background is excluded
+    by default, since tumor Dice is the quantity of interest in BraTS.
+    """
+    preds = _hard_labels(preds)
+    start = 0 if include_background else 1
+    scores = []
+    for c in range(start, num_classes):
+        p = preds == c
+        t = targets == c
+        intersection = (p & t).sum().to(torch.float64)
+        denom = p.sum().to(torch.float64) + t.sum().to(torch.float64)
+        scores.append((2 * intersection + eps) / (denom + eps))
+    if not scores:
+        return 0.0
+    return float(torch.stack(scores).mean())
+
+
+def iou_score(
+    preds: torch.Tensor,
+    targets: torch.Tensor,
+    num_classes: int,
+    *,
+    include_background: bool = False,
+    eps: float = 1e-7,
+) -> float:
+    """Mean intersection-over-union over classes (foreground only by default)."""
+    preds = _hard_labels(preds)
+    start = 0 if include_background else 1
+    scores = []
+    for c in range(start, num_classes):
+        p = preds == c
+        t = targets == c
+        intersection = (p & t).sum().to(torch.float64)
+        union = (p | t).sum().to(torch.float64)
+        scores.append((intersection + eps) / (union + eps))
+    if not scores:
+        return 0.0
+    return float(torch.stack(scores).mean())

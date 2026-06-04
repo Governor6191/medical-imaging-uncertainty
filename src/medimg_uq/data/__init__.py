@@ -6,11 +6,15 @@ Everything a task needs to differ lives here, behind the shared ``Sample`` contr
 
 from medimg_uq.data.base import MedicalDataset
 from medimg_uq.data.isic import ISICDataset, isic_transforms
-from medimg_uq.data.synthetic import SyntheticClassificationDataset
+from medimg_uq.data.synthetic import (
+    SyntheticClassificationDataset,
+    SyntheticSegmentationDataset,
+)
 
 __all__ = [
     "ISICDataset",
     "MedicalDataset",
     "SyntheticClassificationDataset",
+    "SyntheticSegmentationDataset",
     "isic_transforms",
 ]

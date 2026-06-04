@@ -35,6 +35,8 @@ class CalibrationReport:
     ece: float
     mce: float
     auroc: float | None
+    dice: float | None = None
+    iou: float | None = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -58,6 +60,10 @@ class CalibrationReport:
         ]
         if self.auroc is not None:
             parts.insert(1, f"auroc={self.auroc:.4f}")
+        if self.dice is not None:
+            parts.insert(1, f"dice={self.dice:.4f}")
+        if self.iou is not None:
+            parts.insert(2, f"iou={self.iou:.4f}")
         return "  ".join(parts)
 
 
@@ -75,7 +81,11 @@ def compute_report(
     targets; they are flattened to per-voxel samples before scoring, so the
     calibration numbers are per-voxel calibration.
     """
+    dice = iou = None
     if task is Task.SEGMENTATION and probs.ndim == 4:
+        # Dice and IoU need the spatial layout, so compute them before flattening.
+        dice = metrics.dice_score(probs, targets, num_classes)
+        iou = metrics.iou_score(probs, targets, num_classes)
         probs, targets = metrics.flatten_voxels(probs, targets)
 
     n_samples = int(targets.shape[0])
@@ -92,4 +102,6 @@ def compute_report(
         ece=metrics.expected_calibration_error(probs, targets, n_bins=n_bins),
         mce=metrics.maximum_calibration_error(probs, targets, n_bins=n_bins),
         auroc=auroc,
+        dice=dice,
+        iou=iou,
     )
