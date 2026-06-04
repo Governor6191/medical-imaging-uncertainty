@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-WIP-orange.svg)](#status)
+[![Status](https://img.shields.io/badge/status-active-brightgreen.svg)](#status)
 
 A modality-agnostic medical-imaging framework whose differentiator is calibrated uncertainty. Most medical-imaging repos report accuracy and stop. This one reports calibration alongside accuracy for every model, because a model that says how sure it is matters more in a clinical setting than one that is only sometimes right and never says so.
 
@@ -11,7 +11,7 @@ The uncertainty method is Deep Ensembles: train K models from different seeds an
 One core, two applications:
 
 - **Skin lesion classification (ISIC).** Benign vs malignant from dermoscopy images. Done.
-- **Brain tumor segmentation (BraTS).** Tumor masks from multi-modal MRI, with per-voxel uncertainty maps. Work in progress.
+- **Brain tumor segmentation (BraTS).** Tumor masks from multi-modal MRI, with per-voxel uncertainty maps. Done.
 
 The model is the table stakes. The calibrated uncertainty and the reusable two-modality framework are the point.
 
@@ -101,19 +101,44 @@ It opens at `http://127.0.0.1:7860`. By default it loads the ensemble from `chec
 
 ## Application 2: brain tumor segmentation (BraTS)
 
-Code complete, awaiting data. BraTS is multi-modal MRI (T1, T1ce, T2, FLAIR) and dense per-voxel segmentation. It reuses the shared core: a 2D-slice U-Net (`segmentation_models_pytorch`), a Dice plus cross-entropy loss, Dice and IoU metrics, and the per-voxel calibration the suite already does. The data adapter, the loss, the metrics, the training entry point, and the uncertainty-map figure are built and tested against synthetic NIfTI volumes, so the segmentation half of the framework runs through the same harness as the classifier (a single model is still an ensemble of one).
+Dense per-voxel tumor segmentation from multi-modal MRI (T1, T1ce, T2, FLAIR). This is the second application, and it shares the core with the classifier: the same uncertainty engine, the same calibration suite (now scored per voxel), and the same training harness. Only the model differs, a 2D-slice U-Net from `segmentation_models_pytorch` with a ResNet-34 encoder, four modalities in and four classes out (background plus the three tumor subregions). A single model is still an ensemble of one, so every method flows through one path.
 
-What's left is the real run. BraTS access needs a Synapse data-use agreement, and the numbers plus the headline figure land here once that comes through. That figure is three panels: an MRI slice, the predicted tumor mask, and the per-voxel uncertainty map, which should be least certain along the tumor boundaries.
+**Data.** BraTS 2020, 369 patients, each four co-registered MRI volumes plus an expert segmentation. One case is dropped for a misnamed segmentation file, leaving 368. Volumes are z-scored per modality over the brain, and the tumor-bearing axial slices (24,354 of them) are extracted once to a fast on-disk cache, so training is GPU-bound rather than reloading 80 MB volumes on every access. The split is patient-level (70/15/15), so no patient's slices leak across train, val, and test. See `scripts/prepare_brats.py` and `scripts/train_brats.py`.
 
-Reproduce, once the data is in place:
+**Results (held-out test split, about 3,560 tumor slices, 178 million voxels).**
+
+| Method | Dice | IoU | Voxel acc | NLL | Brier | ECE |
+|---|---|---|---|---|---|---|
+| Single model | 0.822 | 0.700 | 0.9926 | 0.040 | 0.0131 | 0.0059 |
+| **Deep Ensemble (K=3)** | **0.828** | **0.708** | **0.9929** | **0.032** | **0.0116** | **0.0044** |
+
+Same story as ISIC, now for dense prediction: the Deep Ensemble is better on every metric, and the calibration gains lead. Over the single model it cuts per-voxel NLL by 19 percent and ECE by 25 percent while nudging Dice and IoU up. Ensembling sharpens where the model is unsure more than it moves where the mask lands.
+
+**Per-voxel uncertainty.** The headline figure is the test slice the ensemble found hardest, drawn as four panels: the FLAIR MRI, the predicted tumor mask, the ground truth, and the per-voxel epistemic uncertainty (how much the three members disagree).
+
+![BraTS per-voxel uncertainty](docs/figures/brats_uncertainty.png)
+
+*The uncertainty concentrates along the tumor boundary and through the heterogeneous core, exactly where the label is genuinely ambiguous, and falls to near zero in confident healthy tissue. That is what calibrated segmentation uncertainty should look like: the model flags the voxels a radiologist would also linger on.*
+
+**Honest caveats.**
+
+- This is a 2D-slice model, so the Dice here is not directly comparable to the 3D BraTS leaderboard, which scores whole volumes on the nested whole-tumor, tumor-core, and enhancing-tumor regions. The numbers above are the mean Dice and IoU over the three raw tumor subclasses (necrotic and non-enhancing, edema, enhancing), with background excluded.
+- Training and evaluation use tumor-bearing slices only, so this measures segmentation quality given that a tumor is present, not whole-volume screening for whether one is.
+- Voxel accuracy looks near-perfect because background dominates the voxel count. It is in the table for completeness; Dice, IoU, and the calibration metrics are the numbers that matter here.
+- As with ISIC, MCE is noisier than ECE, since a sparse high-confidence bin can dominate it. ECE, which is count-weighted, is the calibration metric to trust.
+
+**Reproduce.**
 
 ```
-python scripts/train_brats.py --config configs/brats_unet.yaml --data-root data/brats
+python scripts/prepare_brats.py --data-root /path/to/BraTS2020_TrainingData --out data/brats2020_slices --file-ext .nii
+python scripts/train_brats.py --config configs/brats_unet.yaml --cache-dir data/brats2020_slices
 ```
+
+The first command builds the slice cache once. The second trains the three members, then scores the single model and the Deep Ensemble per voxel on val and test and writes the uncertainty figure. For a different BraTS release, drop `--file-ext` for `.nii.gz` and check the modality and label naming against the adapter defaults.
 
 ## Status
 
-ISIC is done and deployed (demo, model, code). BraTS is code complete and tested on synthetic data, waiting on the Synapse data-use agreement to train for real. These are research models, not cleared diagnostic tools.
+Both applications are done. ISIC is deployed (demo, model, code). BraTS is trained on the real BraTS 2020 data, with per-voxel calibration and the uncertainty figure above. These are research models, not cleared diagnostic tools.
 
 ## Setup
 
