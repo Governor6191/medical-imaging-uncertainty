@@ -1,0 +1,27 @@
+# BraTS brain tumor segmentation, 2D-slice U-Net.
+# Four MRI modalities in, four tumor classes out (background, NCR, edema, ET).
+name: brats_unet
+task: segmentation
+num_classes: 4
+image_size: 224
+seed: 0
+num_workers: 4
+n_bins: 15
+out_dir: outputs
+ckpt_dir: checkpoints
+ensemble_size: 3
+mc_dropout_samples: 30
+
+model:
+  backbone: resnet34
+  pretrained: true
+  drop_rate: 0.0
+  in_chans: 4
+
+optim:
+  lr: 0.0003
+  weight_decay: 0.0001
+  epochs: 30
+  batch_size: 8
+  amp: true
+  scheduler: cosine

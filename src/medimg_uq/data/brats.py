@@ -77,6 +77,7 @@ class BraTSDataset(MedicalDataset):
         target_size: int = 224,
         min_tumor_voxels: int = 1,
         include_empty_slices: bool = False,
+        patient_ids: list[str] | None = None,
         cache_size: int = 4,
     ) -> None:
         super().__init__(num_classes=num_classes)
@@ -87,6 +88,10 @@ class BraTSDataset(MedicalDataset):
         self.label_map = dict(label_map or self.DEFAULT_LABEL_MAP)
         self.target_size = target_size
         self.patients = sorted(p for p in self.root.iterdir() if p.is_dir())
+        if patient_ids is not None:
+            # Restrict to a patient subset, for a patient-level train/val/test split.
+            wanted = set(patient_ids)
+            self.patients = [p for p in self.patients if p.name in wanted]
         if not self.patients:
             raise ValueError(f"no patient folders under {self.root}")
         self._cache: OrderedDict[int, tuple[np.ndarray, np.ndarray]] = OrderedDict()

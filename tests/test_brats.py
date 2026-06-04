@@ -80,6 +80,14 @@ def test_brats_normalizes_per_modality(tmp_path):
             assert abs(float(image[c][brain].std()) - 1.0) < 0.2
 
 
+def test_brats_patient_ids_restricts_the_split(tmp_path):
+    _make_patient(tmp_path, "BraTS_0001", tumor_slices=(2,))
+    _make_patient(tmp_path, "BraTS_0002", tumor_slices=(2,))
+    ds = BraTSDataset(tmp_path, target_size=32, patient_ids=["BraTS_0001"])
+    selected = {ds.patients[patient_idx].name for patient_idx, _ in ds.index}
+    assert selected == {"BraTS_0001"}  # patient 0002 is held out of this split
+
+
 def test_brats_errors_on_empty_root(tmp_path):
     with pytest.raises(ValueError, match="no patient folders"):
         BraTSDataset(tmp_path, target_size=32)
