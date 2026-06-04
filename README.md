@@ -87,6 +87,9 @@ The second command trains the five members, then scores the single model, the De
 
 An interactive Gradio app: drop in a dermoscopy image and get the ensemble's calibrated benign/malignant probabilities plus how much the five members disagree. When they split, the app says so, which is the whole point of carrying uncertainty.
 
+- Live demo: [huggingface.co/spaces/Governor6191/isic-skin-lesion-uncertainty](https://huggingface.co/spaces/Governor6191/isic-skin-lesion-uncertainty)
+- Model weights: [huggingface.co/Governor6191/isic-skin-lesion-uncertainty](https://huggingface.co/Governor6191/isic-skin-lesion-uncertainty)
+
 Run it locally:
 
 ```
