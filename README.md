@@ -83,6 +83,19 @@ python scripts/train_ensemble.py --config configs/isic_resnet50.yaml --data-root
 
 The second command trains the five members, then scores the single model, the Deep Ensemble, and MC Dropout on val and test, writing a `comparison.json` and reliability diagrams per method.
 
+## Demo
+
+An interactive Gradio app: drop in a dermoscopy image and get the ensemble's calibrated benign/malignant probabilities plus how much the five members disagree. When they split, the app says so, which is the whole point of carrying uncertainty.
+
+Run it locally:
+
+```
+uv sync --extra demo
+python app.py
+```
+
+It opens at `http://127.0.0.1:7860`. By default it loads the ensemble from `checkpoints/isic_resnet50`. `app.py` and `requirements.txt` are also the Hugging Face Spaces entry point: set `MEDIMG_HF_REPO` to a model repo to pull the weights from the Hub instead of a local folder. The app carries a clear research-tool-not-a-diagnosis disclaimer.
+
 ## Application 2: brain tumor segmentation (BraTS)
 
 Planned, not yet built. BraTS is multi-modal MRI (T1, T1ce, T2, FLAIR) and dense per-voxel segmentation. It reuses the shared core with a 2D-slice U-Net, a Dice plus cross-entropy loss, and segmentation metrics (Dice, IoU). The uncertainty story is the per-voxel map: the model should be least certain at tumor boundaries. Access needs a data-use agreement, so that registration comes first on this leg.

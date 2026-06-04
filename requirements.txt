@@ -1,0 +1,12 @@
+# Dependencies for the Hugging Face Space (CPU). The Space installs these, then
+# runs app.py. Torch comes from PyPI here (CPU wheels), unlike the CUDA pins in
+# pyproject.toml that target a local RTX 4070.
+torch
+torchvision
+timm
+albumentations
+numpy
+pillow
+omegaconf
+huggingface_hub
+gradio
