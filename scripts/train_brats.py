@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader
 
 from medimg_uq.calibration import save_figure, segmentation_panels
 from medimg_uq.contract import collate_samples
-from medimg_uq.data import BraTSDataset
+from medimg_uq.data import BraTSDataset, BraTSSliceDataset
 from medimg_uq.eval import evaluate
 from medimg_uq.train import build_model_from_config, load_config, set_seed, train_ensemble
 from medimg_uq.uq import EnsembleSampler, Sampler
@@ -29,25 +29,49 @@ from medimg_uq.uq import EnsembleSampler, Sampler
 FLAIR_CHANNEL = 3  # (t1, t1ce, t2, flair); FLAIR shows edema well for the background
 
 
-def split_patients(data_root: str, seed: int, val_frac: float, test_frac: float) -> dict:
-    patients = sorted(p.name for p in Path(data_root).iterdir() if p.is_dir())
-    random.Random(seed).shuffle(patients)
-    n = len(patients)
+def _patient_is_complete(patient: Path, file_template: str) -> bool:
+    """True if a patient folder has all four modalities and a segmentation."""
+    names = (*BraTSDataset.DEFAULT_MODALITIES, "seg")
+    return all(
+        (patient / file_template.format(patient=patient.name, modality=m)).exists() for m in names
+    )
+
+
+def split_names(names: list[str], seed: int, val_frac: float, test_frac: float) -> dict:
+    """Patient-level train/val/test split, so no patient leaks across splits."""
+    names = list(names)
+    random.Random(seed).shuffle(names)
+    n = len(names)
     n_test = round(n * test_frac)
     n_val = round(n * val_frac)
     return {
-        "test": patients[:n_test],
-        "val": patients[n_test : n_test + n_val],
-        "train": patients[n_test + n_val :],
+        "test": names[:n_test],
+        "val": names[n_test : n_test + n_val],
+        "train": names[n_test + n_val :],
     }
 
 
-def brats_dataset(cfg, data_root: str, patient_ids: list[str]) -> BraTSDataset:
+def raw_patient_names(data_root: str, file_template: str) -> list[str]:
+    return sorted(
+        p.name
+        for p in Path(data_root).iterdir()
+        if p.is_dir() and _patient_is_complete(p, file_template)
+    )
+
+
+def brats_dataset(
+    cfg,
+    data_root: str,
+    patient_ids: list[str],
+    *,
+    file_template: str = "{patient}_{modality}.nii.gz",
+) -> BraTSDataset:
     return BraTSDataset(
         data_root,
         num_classes=cfg.num_classes,
         target_size=cfg.image_size,
         patient_ids=patient_ids,
+        file_template=file_template,
     )
 
 
@@ -111,24 +135,50 @@ def save_uncertainty_figure(sampler: Sampler, cfg, ds, device: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train a BraTS ensemble and report uncertainty.")
     parser.add_argument("--config", required=True)
-    parser.add_argument("--data-root", required=True)
+    parser.add_argument("--data-root", default=None, help="Raw patient folders (on-the-fly mode).")
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Prepared slice cache from prepare_brats.py. Preferred for the full dataset.",
+    )
     parser.add_argument("--device", default=None)
     parser.add_argument("--override", nargs="*", default=None)
     parser.add_argument("--val-frac", type=float, default=0.15)
     parser.add_argument("--test-frac", type=float, default=0.15)
+    parser.add_argument(
+        "--file-ext",
+        default=".nii.gz",
+        help="Image file extension. BraTS 2021 ships .nii.gz; the 2020 Kaggle release is .nii.",
+    )
     args = parser.parse_args()
+    if not args.cache_dir and not args.data_root:
+        parser.error("pass --cache-dir (preferred) or --data-root")
 
     cfg = load_config(args.config, overrides=args.override)
     set_seed(cfg.seed)
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
-    splits = split_patients(args.data_root, cfg.seed, args.val_frac, args.test_frac)
+    ext = args.file_ext if args.file_ext.startswith(".") else f".{args.file_ext}"
+    file_template = "{patient}_{modality}" + ext
+
+    if args.cache_dir:
+        all_patients = BraTSSliceDataset.list_patients(args.cache_dir)
+
+        def make_ds(patient_ids: list[str]):
+            return BraTSSliceDataset(
+                args.cache_dir, patient_ids=patient_ids, num_classes=cfg.num_classes
+            )
+    else:
+        all_patients = raw_patient_names(args.data_root, file_template)
+
+        def make_ds(patient_ids: list[str]):
+            return brats_dataset(cfg, args.data_root, patient_ids, file_template=file_template)
+
+    splits = split_names(all_patients, cfg.seed, args.val_frac, args.test_frac)
     print(f"device={device}  patients: " + ", ".join(f"{k}={len(v)}" for k, v in splits.items()))
 
     def make_loaders(seed: int):
-        train_ds = brats_dataset(cfg, args.data_root, splits["train"])
-        val_ds = brats_dataset(cfg, args.data_root, splits["val"])
-        return loader(train_ds, cfg, shuffle=True, drop_last=True), loader(
-            val_ds, cfg, shuffle=False
+        return loader(make_ds(splits["train"]), cfg, shuffle=True, drop_last=True), loader(
+            make_ds(splits["val"]), cfg, shuffle=False
         )
 
     paths = train_ensemble(make_loaders, cfg=cfg, device=device, log_fn=print)
@@ -140,12 +190,10 @@ def main() -> None:
     }
     comparison: dict[str, dict] = {}
     for split in ("val", "test"):
-        ds = brats_dataset(cfg, args.data_root, splits[split])
+        ds = make_ds(splits[split])
         comparison[split] = {m: score(s, cfg, ds, device, m, split) for m, s in samplers.items()}
 
-    save_uncertainty_figure(
-        samplers["deep_ensemble"], cfg, brats_dataset(cfg, args.data_root, splits["test"]), device
-    )
+    save_uncertainty_figure(samplers["deep_ensemble"], cfg, make_ds(splits["test"]), device)
 
     out = Path(cfg.out_dir) / cfg.name / "comparison.json"
     out.parent.mkdir(parents=True, exist_ok=True)

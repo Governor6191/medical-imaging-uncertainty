@@ -25,6 +25,7 @@ cite the dataset. Do not commit any BraTS file to git.
 
 from __future__ import annotations
 
+import json
 from collections import OrderedDict
 from pathlib import Path
 
@@ -87,13 +88,28 @@ class BraTSDataset(MedicalDataset):
         self.file_template = file_template
         self.label_map = dict(label_map or self.DEFAULT_LABEL_MAP)
         self.target_size = target_size
-        self.patients = sorted(p for p in self.root.iterdir() if p.is_dir())
+        candidates = sorted(p for p in self.root.iterdir() if p.is_dir())
+        if not candidates:
+            raise ValueError(f"no patient folders under {self.root}")
         if patient_ids is not None:
             # Restrict to a patient subset, for a patient-level train/val/test split.
             wanted = set(patient_ids)
-            self.patients = [p for p in self.patients if p.name in wanted]
+            candidates = [p for p in candidates if p.name in wanted]
+        # Drop any patient missing a required modality or the segmentation. Real BraTS
+        # dumps occasionally misname or omit a file (the 2020 release ships one case's
+        # seg as W39_1998.09.19_Segm.nii); skipping keeps the run from crashing on it.
+        self.patients: list[Path] = []
+        self.skipped_patients: list[str] = []
+        for patient in candidates:
+            if self._has_required_files(patient):
+                self.patients.append(patient)
+            else:
+                self.skipped_patients.append(patient.name)
         if not self.patients:
-            raise ValueError(f"no patient folders under {self.root}")
+            raise ValueError(
+                f"every patient folder under {self.root} is missing a required file "
+                f"(need {self.modalities} + {self.seg_name!r}, template {self.file_template!r})"
+            )
         self._cache: OrderedDict[int, tuple[np.ndarray, np.ndarray]] = OrderedDict()
         self._cache_size = cache_size
         self.index = self._build_index(min_tumor_voxels, include_empty_slices)
@@ -102,6 +118,11 @@ class BraTSDataset(MedicalDataset):
 
     def _path(self, patient: Path, modality: str) -> Path:
         return patient / self.file_template.format(patient=patient.name, modality=modality)
+
+    def _has_required_files(self, patient: Path) -> bool:
+        """True if every modality file and the segmentation exist for this patient."""
+        names = (*self.modalities, self.seg_name)
+        return all(self._path(patient, name).exists() for name in names)
 
     def _build_index(self, min_tumor_voxels: int, include_empty: bool) -> list[tuple[int, int]]:
         index: list[tuple[int, int]] = []
@@ -166,4 +187,71 @@ class BraTSDataset(MedicalDataset):
             target=torch.from_numpy(np.ascontiguousarray(mask_slice)).long(),
             task=self.task,
             meta={"patient": self.patients[patient_idx].name, "slice": slice_idx},
+        )
+
+
+MANIFEST_NAME = "manifest.json"
+
+
+class BraTSSliceDataset(MedicalDataset):
+    """Reads pre-extracted BraTS tumor slices from a cache.
+
+    :class:`BraTSDataset` loads whole 80 MB patient volumes on every cache miss,
+    which is fine for a handful of patients but thrashes under shuffled slice-level
+    access across hundreds of patients (the working set dwarfs the volume cache).
+    ``scripts/prepare_brats.py`` extracts every tumor slice once into a small
+    ``.npz`` per slice, so random access here is a sub-millisecond file read and
+    training is GPU-bound rather than I/O-bound. The cache bakes in the target size
+    and normalization used at extraction time.
+
+    The on-disk layout is a ``manifest.json`` at ``cache_dir`` plus one ``.npz`` per
+    slice (a float16 ``(C, H, W)`` image and a uint8 ``(H, W)`` mask), grouped into
+    per-patient subfolders so a patient-level split is just a name filter.
+    """
+
+    task = Task.SEGMENTATION
+
+    def __init__(
+        self,
+        cache_dir: str | Path,
+        *,
+        patient_ids: list[str] | None = None,
+        num_classes: int = 4,
+    ) -> None:
+        super().__init__(num_classes=num_classes)
+        self.cache_dir = Path(cache_dir)
+        manifest_path = self.cache_dir / MANIFEST_NAME
+        if not manifest_path.exists():
+            raise ValueError(
+                f"no {MANIFEST_NAME} under {self.cache_dir}; run scripts/prepare_brats.py first"
+            )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        records = manifest["slices"]
+        if patient_ids is not None:
+            wanted = set(patient_ids)
+            records = [r for r in records if r["patient"] in wanted]
+        if not records:
+            raise ValueError(f"no cached slices for the requested patients under {self.cache_dir}")
+        self.records = records
+
+    @staticmethod
+    def list_patients(cache_dir: str | Path) -> list[str]:
+        """Sorted patient ids present in a prepared cache (for a patient-level split)."""
+        manifest_path = Path(cache_dir) / MANIFEST_NAME
+        if not manifest_path.exists():
+            raise ValueError(f"no {MANIFEST_NAME} under {cache_dir}; run scripts/prepare_brats.py")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return sorted({r["patient"] for r in manifest["slices"]})
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> Sample:
+        record = self.records[index]
+        data = np.load(self.cache_dir / record["file"])
+        return Sample(
+            image=torch.from_numpy(data["image"].astype(np.float32)),
+            target=torch.from_numpy(data["mask"].astype(np.int64)),
+            task=self.task,
+            meta={"patient": record["patient"], "slice": int(record["slice"])},
         )
