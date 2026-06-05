@@ -5,6 +5,7 @@ torch
 torchvision
 timm
 segmentation_models_pytorch
+torchmetrics
 albumentations
 numpy
 pillow
