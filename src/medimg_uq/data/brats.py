@@ -29,7 +29,6 @@ import json
 from collections import OrderedDict
 from pathlib import Path
 
-import nibabel as nib
 import numpy as np
 import torch
 
@@ -125,6 +124,10 @@ class BraTSDataset(MedicalDataset):
         return all(self._path(patient, name).exists() for name in names)
 
     def _build_index(self, min_tumor_voxels: int, include_empty: bool) -> list[tuple[int, int]]:
+        # nibabel is imported lazily so importing this module (for BraTSSliceDataset or
+        # the demo, which read .npz) does not require it. Only the raw NIfTI path needs it.
+        import nibabel as nib
+
         index: list[tuple[int, int]] = []
         for patient_idx, patient in enumerate(self.patients):
             seg_path = self._path(patient, self.seg_name)
@@ -157,6 +160,8 @@ class BraTSDataset(MedicalDataset):
         return out
 
     def _load_patient(self, patient_idx: int) -> tuple[np.ndarray, np.ndarray]:
+        import nibabel as nib
+
         if patient_idx in self._cache:
             self._cache.move_to_end(patient_idx)
             return self._cache[patient_idx]
