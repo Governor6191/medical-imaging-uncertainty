@@ -54,3 +54,7 @@ checkpoints/
 # Local contributor notes
 CLAUDE.md
 RESUME.md
+
+# BraTS demo sample slices (derived from BraTS data, kept out of git; the demo
+# Space carries its own copy, regenerate locally with scripts/make_brats_samples.py)
+demo_assets/brats_samples/

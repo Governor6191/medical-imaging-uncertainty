@@ -127,6 +127,11 @@ Same story as ISIC, now for dense prediction: the Deep Ensemble is better on eve
 - Voxel accuracy looks near-perfect because background dominates the voxel count. It is in the table for completeness; Dice, IoU, and the calibration metrics are the numbers that matter here.
 - As with ISIC, MCE is noisier than ECE, since a sparse high-confidence bin can dominate it. ECE, which is count-weighted, is the calibration metric to trust.
 
+**Demo and weights.** An interactive Gradio Space runs the ensemble on held-out sample slices and draws the predicted mask alongside the per-voxel uncertainty map. The trained weights are on the Hub.
+
+- Live demo: [huggingface.co/spaces/Governor6191/brats-brain-tumor-uncertainty](https://huggingface.co/spaces/Governor6191/brats-brain-tumor-uncertainty)
+- Model weights: [huggingface.co/Governor6191/brats-brain-tumor-uncertainty](https://huggingface.co/Governor6191/brats-brain-tumor-uncertainty)
+
 **Reproduce.**
 
 ```
@@ -138,7 +143,7 @@ The first command builds the slice cache once. The second trains the three membe
 
 ## Status
 
-Both applications are done. ISIC is deployed (demo, model, code). BraTS is trained on the real BraTS 2020 data, with per-voxel calibration and the uncertainty figure above. These are research models, not cleared diagnostic tools.
+Both applications are done and deployed. Each ships a live Hugging Face demo, released weights, code, and a README case study: ISIC skin lesion classification, and BraTS brain tumor segmentation with per-voxel calibration. These are research models, not cleared diagnostic tools.
 
 ## Setup
 

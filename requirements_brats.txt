@@ -1,0 +1,14 @@
+# Dependencies for the BraTS Hugging Face Space (CPU). The Space installs these,
+# then runs app.py. Torch comes from PyPI here (CPU wheels), unlike the CUDA pins
+# in pyproject.toml that target a local RTX 4070.
+torch
+torchvision
+timm
+segmentation_models_pytorch
+albumentations
+numpy
+pillow
+matplotlib
+omegaconf
+huggingface_hub
+gradio
