@@ -28,10 +28,11 @@ ABOUT = (
 )
 
 DISCLAIMER = (
-    "**Research demonstration, not a medical device.** This is a 2D-slice model trained on "
-    "a public research dataset, not validated clinically. The sample slices are from the "
-    "public BraTS 2020 dataset, preprocessed for display. Do not use this for any real "
-    "diagnosis."
+    "**Research demonstration, not a medical device.** This is a 2D-slice model trained on a "
+    "public research dataset, not validated clinically, so do not use it for any real diagnosis. "
+    "The sample slices are held-out, de-identified cases from the BraTS 2020 dataset "
+    "(Menze et al. 2015; Bakas et al. 2017), preprocessed for display and shown for research "
+    "demonstration under the dataset's terms."
 )
 
 

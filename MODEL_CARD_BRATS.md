@@ -62,4 +62,10 @@ The repo holds the three member checkpoints under `member_i/best.pt`, the traini
 
 ## License and citation
 
-MIT. The dataset is the BraTS 2020 challenge data; honor its terms and cite the BraTS references. These are research models, not cleared diagnostic tools.
+Code and weights are MIT. The training and sample data are from the BraTS 2020 challenge; honor its terms. If you use this work, cite the BraTS dataset:
+
+- B. H. Menze et al. (2015). The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS). IEEE Transactions on Medical Imaging 34(10), 1993-2024.
+- S. Bakas et al. (2017). Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features. Nature Scientific Data 4, 170117.
+- S. Bakas et al. (2018). Identifying the Best Machine Learning Algorithms for Brain Tumor Segmentation, Progression Assessment, and Overall Survival Prediction in the BRATS Challenge. arXiv:1811.02629.
+
+These are research models, not cleared diagnostic tools.
